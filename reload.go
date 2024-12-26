@@ -4,7 +4,7 @@ import (
 	"errors"
 	"log/slog"
 
-	cfg "github.com/burningalchemist/sql_exporter/config"
+	cfg "github.com/billgraziano/sql_exporter/config"
 )
 
 // Reload function is used to reload the exporter configuration without restarting the exporter

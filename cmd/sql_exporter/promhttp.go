@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/burningalchemist/sql_exporter"
+	"github.com/billgraziano/sql_exporter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
 )

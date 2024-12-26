@@ -5,12 +5,12 @@ import (
 	"html/template"
 	"net/http"
 
-	"github.com/burningalchemist/sql_exporter"
+	"github.com/billgraziano/sql_exporter"
 	"github.com/prometheus/common/version"
 )
 
 const (
-	docsURL   = "https://github.com/burningalchemist/sql_exporter#readme"
+	docsURL   = "https://github.com/billgraziano/sql_exporter#readme"
 	templates = `
     {{ define "page" -}}
       <html>

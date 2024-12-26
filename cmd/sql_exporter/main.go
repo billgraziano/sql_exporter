@@ -8,11 +8,12 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/debug"
 	"syscall"
 	"time"
 
-	"github.com/burningalchemist/sql_exporter"
-	cfg "github.com/burningalchemist/sql_exporter/config"
+	"github.com/billgraziano/sql_exporter"
+	cfg "github.com/billgraziano/sql_exporter/config"
 	_ "github.com/kardianos/minwinsvc"
 	"github.com/prometheus/client_golang/prometheus"
 	info "github.com/prometheus/client_golang/prometheus/collectors/version"
@@ -58,6 +59,9 @@ func main() {
 
 	// Show version and exit.
 	if *showVersion {
+		if bi, ok := debug.ReadBuildInfo(); ok {
+			fmt.Printf("Repository: %s\n", bi.Main.Path) // Repository
+		}
 		fmt.Println(version.Print(appName))
 		os.Exit(0)
 	}
@@ -82,7 +86,10 @@ func main() {
 		*configFile = val
 	}
 
-	slog.Warn("Starting SQL exporter", "versionInfo", version.Info(), "buildContext", version.BuildContext())
+	slog.Info("Starting SQL exporter", "versionInfo", version.Info(), "buildContext", version.BuildContext())
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		slog.Info(fmt.Sprintf("Repository: %s", bi.Main.Path)) // Repository
+	}
 	exporter, err := sql_exporter.NewExporter(*configFile)
 	if err != nil {
 		slog.Error("Error creating exporter", "error", err)

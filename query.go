@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/burningalchemist/sql_exporter/config"
-	"github.com/burningalchemist/sql_exporter/errors"
+	"github.com/billgraziano/sql_exporter/config"
+	"github.com/billgraziano/sql_exporter/errors"
 )
 
 // Query wraps a sql.Stmt and all the metrics populated from it. It helps extract keys and values from result rows.
