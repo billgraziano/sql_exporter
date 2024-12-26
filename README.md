@@ -185,7 +185,12 @@ databases like MySQL, so you might want to adjust your connection string accordi
 ```plaintext
 mysql://user:pass@localhost/dbname - for TCP connection
 mysql:/var/run/mysqld/mysqld.sock - for Unix socket connection
+sqlserver://computer/instance/master - for a SQL Server named instance
 ```
+
+> [!IMPORTANT]
+> Connecting to a SQL Server named instance requires the computer, instance, and a database in the URL path.
+
 
 > [!IMPORTANT]
 > If your DSN contains special characters in any part of your connection string (including passwords), you might need to
