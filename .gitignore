@@ -4,3 +4,7 @@
 /sql_exporter
 /sql_exporter.yml
 .idea/*
+
+*.exe
+*.log
+/*.yml
