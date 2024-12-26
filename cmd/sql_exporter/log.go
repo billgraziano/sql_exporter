@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/prometheus/common/promslog"
 )
@@ -18,11 +21,20 @@ func initLogFile(logFile string) (*os.File, error) {
 	if logFile == "" {
 		return nil, nil
 	}
+	logFile = logFileWithTimeStamp(logFile)
 	logFileHandler, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
 	if err != nil {
 		return nil, fmt.Errorf("error opening log file: %w", err)
 	}
 	return logFileHandler, nil
+}
+
+// logFileWithTimeStamp inserts a YYYY_MM timestamp in a file name
+func logFileWithTimeStamp(logFile string) string {
+	ext := filepath.Ext(logFile)
+	name := strings.TrimSuffix(logFile, ext)
+	tsname := fmt.Sprintf("%s_%d_%d%s", name, time.Now().Year(), time.Now().Month(), ext)
+	return tsname
 }
 
 // initLogConfig configures and initializes the logging system.
