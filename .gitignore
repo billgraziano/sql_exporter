@@ -8,3 +8,5 @@
 *.exe
 *.log
 /*.yml
+/deploy
+*.zip

@@ -86,17 +86,30 @@ func (mf MetricFamily) Collect(row map[string]any, ch chan<- Metric) {
 		}
 		value := row[v].(sql.NullFloat64)
 		if value.Valid {
+			// if the source sends a timestamp, use that
+			// else, use the sql_exporter time
+			// the big use case is MSSQL CPU reported from the ring buffer
 			metric := NewMetric(&mf, value.Float64, labelValues...)
+			if mf.config.TimestampValue != "" {
+				ts := row[mf.config.TimestampValue].(sql.NullTime)
+				if ts.Valid {
+					ch <- NewMetricWithTimestamp(ts.Time, metric)
+				} else { // else we lose a value?
+					ch <- NewMetricWithTimestamp(time.Now(), metric)
+				}
+			} else {
+				ch <- NewMetricWithTimestamp(time.Now(), metric)
+			}
+
 			// if mf.config.TimestampValue == "" {
-			// 	ch <- metric
+			// 	// ch <- metric // BG: Always send a timestamp
+			// 	ch <- NewMetricWithTimestamp(time.Now(), metric)
 			// } else {
 			// 	ts := row[mf.config.TimestampValue].(sql.NullTime)
 			// 	if ts.Valid {
 			// 		ch <- NewMetricWithTimestamp(ts.Time, metric)
-			// 	}
+			// 	} // else we lose a value?
 			// }
-			// BG: Always send a timestamp
-			ch <- NewMetricWithTimestamp(time.Now(), metric)
 		}
 	}
 	if mf.config.StaticValue != nil {
