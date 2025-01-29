@@ -21,7 +21,11 @@ func initLogFile(logFile string) (*os.File, error) {
 	if logFile == "" {
 		return nil, nil
 	}
-	logFile = logFileWithTimeStamp(logFile)
+	var err error
+	logFile, err = logFileWithTimeStamp(logFile)
+	if err != nil {
+		return nil, fmt.Errorf("logfilewithtimestamp: %v", err)
+	}
 	logFileHandler, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
 	if err != nil {
 		return nil, fmt.Errorf("error opening log file: %w", err)
@@ -29,12 +33,30 @@ func initLogFile(logFile string) (*os.File, error) {
 	return logFileHandler, nil
 }
 
-// logFileWithTimeStamp inserts a YYYY_MM timestamp in a file name
-func logFileWithTimeStamp(logFile string) string {
+// logFileWithTimeStamp inserts a YYYY_MM timestamp in a file name and puts
+// it in the "logs" folder.
+func logFileWithTimeStamp(logFile string) (string, error) {
+	// get the exe folder
+	exe, err := os.Executable()
+	if err != nil {
+		return logFile, fmt.Errorf("os.executable: %v", err)
+	}
+	wd := filepath.Dir(exe)
+
+	// make the logs folder
+	logsDir := filepath.Join(wd, "logs")
+	err = os.MkdirAll(logsDir, 0644)
+	if err != nil {
+		return logFile, fmt.Errorf("os.mkdirall: %v", err)
+	}
+
+	// inject the timestamp
 	ext := filepath.Ext(logFile)
 	name := strings.TrimSuffix(logFile, ext)
-	tsname := fmt.Sprintf("%s_%d_%d%s", name, time.Now().Year(), time.Now().Month(), ext)
-	return tsname
+	tsname := fmt.Sprintf("%s_%s%s", name, time.Now().Format("2006_01"), ext)
+
+	// put the file in the logs folder
+	return filepath.Join(logsDir, tsname), nil
 }
 
 // initLogConfig configures and initializes the logging system.

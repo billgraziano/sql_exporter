@@ -25,7 +25,7 @@ This will hopefully be kept current with the changes I have made.
 	}
 	```
 
-* **Log file is named with YYYY_MM in the file name.**  The log file is still appended if it exists.
+* **Log file is named with YYYY_MM in the file name.**  The log file is still appended if it exists.  The log files are stored in the `./logs` folder relative to the executable.
 
 	```go
 	// log.go:19
