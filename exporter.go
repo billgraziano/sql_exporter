@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -47,9 +49,14 @@ type exporter struct {
 
 // NewExporter returns a new Exporter with the provided config.
 func NewExporter(configFile string) (Exporter, error) {
+	configFile, err := makeFilePathAbsolute(configFile)
+	if err != nil {
+		return nil, fmt.Errorf("makefilepathabsolute: %v", err)
+	}
+
 	c, err := config.Load(configFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("config.load: %v", err)
 	}
 
 	// Override the DSN if requested (and in single target mode).
@@ -245,4 +252,66 @@ func TrimMissingCtx(logContext string) string {
 		logContext = strings.TrimLeft(logContext, ", ")
 	}
 	return logContext
+}
+
+// makeFilePathAbsolute tries to make the file an absolute path.
+// It is based on the EXE folder.  It tries, ".", "./config",
+// "./dev/config".  If none of those hit, it returns back
+// the original file.
+func makeFilePathAbsolute(name string) (string, error) {
+	if filepath.IsAbs(name) {
+		return name, nil
+	}
+
+	// get the executable folder
+	exe, err := os.Executable()
+	if err != nil {
+		return name, fmt.Errorf("os.executable: %v", err)
+	}
+	wd := filepath.Dir(exe)
+
+	// test with the EXE folder
+	fqname := filepath.Join(wd, name)
+	ok, err := fileExists(fqname)
+	if ok {
+		return fqname, nil
+	}
+	if err != nil {
+		return name, fmt.Errorf("testconfigfile: %v", err)
+	}
+
+	// test with EXE/config
+	fqname = filepath.Join(wd, "config", name)
+	ok, err = fileExists(fqname)
+	if ok {
+		return fqname, nil
+	}
+	if err != nil {
+		return name, fmt.Errorf("testconfigfile: %v", err)
+	}
+
+	// test with EXE/dev/config
+	// this is really an ugly hack for developing
+	fqname = filepath.Join(wd, "dev", "config", name)
+	ok, err = fileExists(fqname)
+	if ok {
+		return fqname, nil
+	}
+	if err != nil {
+		return name, fmt.Errorf("testconfigfile: %v", err)
+	}
+
+	return name, nil
+}
+
+// fileExists checks if a file exists
+func fileExists(name string) (bool, error) {
+	_, err := os.Stat(name)
+	if err == nil { // exists
+		return true, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return false, fmt.Errorf("os.stat: %v", err)
 }

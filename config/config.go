@@ -32,7 +32,7 @@ var (
 
 // Load attempts to parse the given config file and return a Config object.
 func Load(configFile string) (*Config, error) {
-	slog.Debug("Loading configuration", "file", configFile)
+	slog.Info("loading configuration", "file", configFile)
 	buf, err := os.ReadFile(configFile)
 	if err != nil {
 		return nil, err
@@ -205,7 +205,7 @@ func (c *Config) loadCollectorFiles() error {
 			}
 
 			c.Collectors = append(c.Collectors, &cc)
-			slog.Debug("Loaded collector", "name", cc.Name, "file", cf)
+			slog.Info("collector loaded", "name", cc.Name, "file", cf)
 		}
 	}
 

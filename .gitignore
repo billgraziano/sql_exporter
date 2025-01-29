@@ -10,3 +10,6 @@
 /*.yml
 /deploy
 *.zip
+/dev
+
+run.cmd
