@@ -49,9 +49,9 @@ type exporter struct {
 
 // NewExporter returns a new Exporter with the provided config.
 func NewExporter(configFile string) (Exporter, error) {
-	configFile, err := makeFilePathAbsolute(configFile)
+	configFile, err := findConfigFile(configFile)
 	if err != nil {
-		return nil, fmt.Errorf("makefilepathabsolute: %v", err)
+		return nil, fmt.Errorf("findconfigfile: %v", err)
 	}
 
 	c, err := config.Load(configFile)
@@ -254,11 +254,18 @@ func TrimMissingCtx(logContext string) string {
 	return logContext
 }
 
-// makeFilePathAbsolute tries to make the file an absolute path.
-// It is based on the EXE folder.  It tries, ".", "./config",
-// "./dev/config".  If none of those hit, it returns back
-// the original file.
-func makeFilePathAbsolute(name string) (string, error) {
+// findConfigFile searches for a config file.  If the config file
+// is an absolute path, it uses that.  If it isn't absolute,
+// it searches in the executable folder, the "config" subfolder,
+// and "dev/config" subfolder.  It searches for what was passed
+// on the command line -- sql_exporter.yml by default and then
+// {os.hostname()}.sql_exporter.yml.
+//
+// It returns the absolute path of the configuration file.  This helps
+// Windows services, which run in the system32 folder.
+//
+// If it doesn't find a file, it returns an error.
+func findConfigFile(name string) (string, error) {
 	if filepath.IsAbs(name) {
 		return name, nil
 	}
@@ -270,38 +277,27 @@ func makeFilePathAbsolute(name string) (string, error) {
 	}
 	wd := filepath.Dir(exe)
 
-	// test with the EXE folder
-	fqname := filepath.Join(wd, name)
-	ok, err := fileExists(fqname)
-	if ok {
-		return fqname, nil
-	}
+	// get the hostname
+	host, err := os.Hostname()
 	if err != nil {
-		return name, fmt.Errorf("testconfigfile: %v", err)
+		return name, fmt.Errorf("os.hostname: %v", err)
 	}
-
-	// test with EXE/config
-	fqname = filepath.Join(wd, "config", name)
-	ok, err = fileExists(fqname)
-	if ok {
-		return fqname, nil
+	folders := []string{wd, filepath.Join(wd, "config"), filepath.Join(wd, "dev", "config")}
+	files := []string{name, fmt.Sprintf("%s.sql_exporter.yml", host)}
+	for _, folder := range folders {
+		for _, file := range files {
+			fullname := filepath.Join(folder, file)
+			exists, err := fileExists(fullname)
+			if exists {
+				return fullname, nil
+			}
+			if err != nil {
+				return fullname, err
+			}
+		}
 	}
-	if err != nil {
-		return name, fmt.Errorf("testconfigfile: %v", err)
-	}
-
-	// test with EXE/dev/config
-	// this is really an ugly hack for developing
-	fqname = filepath.Join(wd, "dev", "config", name)
-	ok, err = fileExists(fqname)
-	if ok {
-		return fqname, nil
-	}
-	if err != nil {
-		return name, fmt.Errorf("testconfigfile: %v", err)
-	}
-
-	return name, nil
+	// not found
+	return "", fmt.Errorf("not found: %s", name)
 }
 
 // fileExists checks if a file exists
