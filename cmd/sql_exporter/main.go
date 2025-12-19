@@ -83,8 +83,19 @@ func main() {
 
 	// Override the config.file default with the SQLEXPORTER_CONFIG environment variable if set.
 	if val, ok := os.LookupEnv(cfg.EnvConfigFile); ok {
+		slog.Info(fmt.Sprintf("ENV: %s=%s", cfg.EnvConfigFile, val))
 		*configFile = val
 	}
+
+	// find the actual config file
+	// we need this hear so that the two reloads can use it
+	val, err := sql_exporter.FindConfigFile(*configFile)
+	if err != nil {
+		slog.Error(fmt.Sprintf("findconfigfile: %s", err))
+		os.Exit(1)
+	}
+	*configFile = val
+	slog.Info("resolved configuration file", "file", *configFile)
 
 	slog.Info("Starting SQL exporter", "versionInfo", version.Info(), "buildContext", version.BuildContext())
 	if bi, ok := debug.ReadBuildInfo(); ok {
@@ -109,8 +120,10 @@ func main() {
 	http.Handle(*metricsPath, promhttp.InstrumentMetricHandler(prometheus.DefaultRegisterer, ExporterHandlerFor(exporter)))
 	// Expose exporter metrics separately, for debugging purposes.
 	http.Handle("/sql_exporter_metrics", promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{}))
+
 	// Expose refresh handler to reload collectors and targets
 	if *enableReload {
+		slog.Info("enabling /reload")
 		http.HandleFunc("/reload", reloadHandler(exporter, *configFile))
 	}
 
@@ -128,6 +141,7 @@ func main() {
 // reloadHandler returns a handler that reloads collector and target data.
 func reloadHandler(e sql_exporter.Exporter, configFile string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		slog.Info("reloading configuration")
 		if err := sql_exporter.Reload(e, &configFile); err != nil {
 			slog.Error("Error reloading collector and target data", "error", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)

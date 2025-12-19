@@ -49,11 +49,12 @@ type exporter struct {
 
 // NewExporter returns a new Exporter with the provided config.
 func NewExporter(configFile string) (Exporter, error) {
-	configFile, err := findConfigFile(configFile)
-	if err != nil {
-		return nil, fmt.Errorf("findconfigfile: %v", err)
-	}
-
+	// We already found the file in cmd/main
+	// configFile, err := FindConfigFile(configFile)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("findconfigfile: %v", err)
+	// }
+	slog.Info("NewExporter", "file", configFile)
 	c, err := config.Load(configFile)
 	if err != nil {
 		return nil, fmt.Errorf("config.load: %v", err)
@@ -254,7 +255,7 @@ func TrimMissingCtx(logContext string) string {
 	return logContext
 }
 
-// findConfigFile searches for a config file.  If the config file
+// FindConfigFile searches for a config file.  If the config file
 // is an absolute path, it uses that.  If it isn't absolute,
 // it searches in the executable folder, the "config" subfolder,
 // and "dev/config" subfolder.  It searches for what was passed
@@ -265,7 +266,7 @@ func TrimMissingCtx(logContext string) string {
 // Windows services, which run in the system32 folder.
 //
 // If it doesn't find a file, it returns an error.
-func findConfigFile(name string) (string, error) {
+func FindConfigFile(name string) (string, error) {
 	if filepath.IsAbs(name) {
 		return name, nil
 	}
