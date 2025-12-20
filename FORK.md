@@ -50,3 +50,5 @@ This will hopefully be kept current with the changes I have made.
 		return tsname
 	}
 	```
+
+* **Reload on configuration file change**.  If enabled on the command-line, it will reload the configuration if a file in that folder changes.  We use this to push configurations from GIT to each server.
