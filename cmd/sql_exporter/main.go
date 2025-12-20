@@ -152,6 +152,9 @@ func main() {
 		}
 	}
 
+	if *devFlag {
+		slog.Info(fmt.Sprintf("DEV: http://localhost%s/metrics", *listenAddress))
+	}
 	server := &http.Server{Addr: *listenAddress, ReadHeaderTimeout: httpReadHeaderTimeout}
 	if err := web.ListenAndServe(server, &web.FlagConfig{
 		WebListenAddresses: &([]string{*listenAddress}),
