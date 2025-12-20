@@ -15,6 +15,8 @@ import (
 	"github.com/billgraziano/sql_exporter"
 	cfg "github.com/billgraziano/sql_exporter/config"
 	_ "github.com/kardianos/minwinsvc"
+	"github.com/lmittmann/tint"
+	"github.com/mattn/go-colorable"
 	"github.com/prometheus/client_golang/prometheus"
 	info "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -36,9 +38,11 @@ var (
 	enableReload  = flag.Bool("web.enable-reload", false, "Enable reload collector data handler")
 	webConfigFile = flag.String("web.config.file", "", "[EXPERIMENTAL] TLS/BasicAuth configuration file path")
 	configFile    = flag.String("config.file", "sql_exporter.yml", "SQL Exporter configuration file path")
+	configWatch   = flag.Bool("config.watch", false, "Watch config file folder for changes")
 	logFormat     = flag.String("log.format", "logfmt", "Set log output format")
 	logLevel      = flag.String("log.level", "info", "Set log level")
 	logFile       = flag.String("log.file", "", "Log file to write to, leave empty to write to stderr")
+	devFlag       = flag.Bool("dev", false, "enable DEV mode for pretty logging")
 )
 
 func init() {
@@ -66,21 +70,34 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Setup logging.
-	logConfig, err := initLogConfig(*logLevel, *logFormat, *logFile)
-	if err != nil {
-		fmt.Printf("Error initializing exporter: %s\n", err)
-		os.Exit(1)
-	}
-
-	defer func() {
-		if logConfig.logFileHandler != nil {
-			logConfig.logFileHandler.Close()
+	var logger *slog.Logger
+	if *devFlag {
+		w := os.Stderr
+		logger = slog.New(
+			tint.NewHandler(colorable.NewColorable(w),
+				&tint.Options{
+					Level:      slog.LevelDebug,
+					TimeFormat: time.Kitchen,
+				}),
+		)
+		slog.SetDefault(logger)
+	} else {
+		// Setup logging.
+		logConfig, err := initLogConfig(*logLevel, *logFormat, *logFile)
+		if err != nil {
+			fmt.Printf("Error initializing exporter: %s\n", err)
+			os.Exit(1)
 		}
-	}()
 
-	slog.SetDefault(logConfig.logger)
+		defer func() {
+			if logConfig.logFileHandler != nil {
+				logConfig.logFileHandler.Close()
+			}
+		}()
 
+		slog.SetDefault(logConfig.logger)
+		logger = logConfig.logger
+	}
 	// Override the config.file default with the SQLEXPORTER_CONFIG environment variable if set.
 	if val, ok := os.LookupEnv(cfg.EnvConfigFile); ok {
 		slog.Info(fmt.Sprintf("ENV: %s=%s", cfg.EnvConfigFile, val))
@@ -127,11 +144,19 @@ func main() {
 		http.HandleFunc("/reload", reloadHandler(exporter, *configFile))
 	}
 
+	// start watching the folder for the config files
+	if *configWatch {
+		err = watchConfig(exporter, *configFile)
+		if err != nil {
+			slog.Error("watchconfig", "error", err)
+		}
+	}
+
 	server := &http.Server{Addr: *listenAddress, ReadHeaderTimeout: httpReadHeaderTimeout}
 	if err := web.ListenAndServe(server, &web.FlagConfig{
 		WebListenAddresses: &([]string{*listenAddress}),
 		WebConfigFile:      webConfigFile, WebSystemdSocket: OfBool(false),
-	}, logConfig.logger); err != nil {
+	}, logger); err != nil {
 		slog.Error("Error starting web server", "error", err)
 		os.Exit(1)
 
@@ -141,7 +166,7 @@ func main() {
 // reloadHandler returns a handler that reloads collector and target data.
 func reloadHandler(e sql_exporter.Exporter, configFile string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		slog.Info("reloading configuration")
+		slog.Info("reloading configuration from /reload")
 		if err := sql_exporter.Reload(e, &configFile); err != nil {
 			slog.Error("Error reloading collector and target data", "error", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -157,6 +182,7 @@ func signalHandler(e sql_exporter.Exporter, configFile string) {
 	signal.Notify(c, syscall.SIGHUP)
 	go func() {
 		for range c {
+			slog.Info("reload from signalHandler")
 			if err := sql_exporter.Reload(e, &configFile); err != nil {
 				slog.Error("Error reloading collector and target data", "error", err)
 			}
